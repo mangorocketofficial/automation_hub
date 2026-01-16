@@ -1,0 +1,73 @@
+version: "3.9"
+
+services:
+  # 1. 프론트엔드 (Next.js) - 빌드 시점에 IP 주입이 필수입니다.
+  dashboard:
+    container_name: automation_dashboard
+    build:
+      context: ./automation_hub/apps/dashboard
+      dockerfile: Dockerfile
+      args:
+        # Next.js 빌드 시 자바스크립트에 박힐 IP 주소들
+        - NEXT_PUBLIC_VPS_API_URL=http://141.164.58.92:8000
+        - NEXT_PUBLIC_ANALYSIS_API_URL=http://141.164.58.92:8080/api/v1
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./automation_hub/apps/dashboard/.env.local
+    environment:
+      NODE_ENV: production
+      # 런타임 환경변수 (이미 박힌 값 외에 추가 확인용)
+      NEXT_PUBLIC_API_BASE_URL: "http://141.164.58.92:8000"
+      NEXT_PUBLIC_ANALYSIS_API_URL: "http://141.164.58.92:8080/api/v1"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - automation_net
+
+  # 2. 메인 백엔드 (FastAPI)
+  api:
+    container_name: automation_api
+    build:
+      context: ./automation_hub/apps/api
+      dockerfile: Dockerfile
+      args:
+        - API_BASE_URL=http://141.164.58.92:8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./automation_hub/.env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      API_BASE_URL: "http://141.164.58.92:8000"
+    restart: unless-stopped
+    networks:
+      - automation_net
+
+  # 3. 유튜브 AI 팩토리 (FastAPI)
+  short_api_factory:
+    container_name: short_api_factory
+    build:
+      context: ./short_api_factory
+      dockerfile: Dockerfile
+      args:
+        - FACTORY_API_URL=http://141.164.58.92:8000
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./short_api_factory/.env
+    # 포트 8080으로 실행되도록 커맨드 유지
+    command: python -m uvicorn api.app:app --host 0.0.0.0 --port 8080
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      FACTORY_API_URL: "http://141.164.58.92:8000"
+    restart: unless-stopped
+    networks:
+      - automation_net
+
+networks:
+  automation_net:
+    name: automation_net

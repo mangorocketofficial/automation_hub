@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  dashboard:
+    container_name: automation_dashboard
+    build:
+      context: ./automation_hub/apps/dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:             # 이 부분 추가
+      - ./automation_hub/apps/api/.env
+    environment:
+      NODE_ENV: production
+      # 필요하면 여기서 API URL 등도 주입 가능
+      # NEXT_PUBLIC_API_BASE_URL: "http://api:8000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    container_name: automation_api
+    build:
+      context: ./automation_hub/apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      # DB_URL, OPENAI_API_KEY 등 환경변수도 여기서 주입 가능
+    restart: unless-stopped
+
+  short_api_factory:
+    container_name: short_api_factory
+    build:
+      context: ./short_api_factory
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      # 여기도 필요한 API 키, 설정 등 추가
+    restart: unless-stopped
+
+networks:
+  default:
+    name: automation_net
