@@ -1,14 +1,13 @@
 version: "3.9"
 
 services:
-  # 1. 프론트엔드 (Next.js) - 빌드 시점에 IP 주입이 필수입니다.
+  # 1. 프론트엔드 (Next.js)
   dashboard:
     container_name: automation_dashboard
     build:
       context: ./automation_hub/apps/dashboard
       dockerfile: Dockerfile
       args:
-        # Next.js 빌드 시 자바스크립트에 박힐 IP 주소들
         - NEXT_PUBLIC_VPS_API_URL=http://141.164.58.92:8000
         - NEXT_PUBLIC_ANALYSIS_API_URL=http://141.164.58.92:8080/api/v1
     ports:
@@ -17,11 +16,11 @@ services:
       - ./automation_hub/apps/dashboard/.env.local
     environment:
       NODE_ENV: production
-      # 런타임 환경변수 (이미 박힌 값 외에 추가 확인용)
       NEXT_PUBLIC_API_BASE_URL: "http://141.164.58.92:8000"
       NEXT_PUBLIC_ANALYSIS_API_URL: "http://141.164.58.92:8080/api/v1"
     depends_on:
       - api
+      - postgres
     restart: unless-stopped
     networks:
       - automation_net
@@ -42,6 +41,8 @@ services:
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       API_BASE_URL: "http://141.164.58.92:8000"
+    depends_on:
+      - postgres
     restart: unless-stopped
     networks:
       - automation_net
@@ -58,15 +59,35 @@ services:
       - "8080:8080"
     env_file:
       - ./short_api_factory/.env
-    # 포트 8080으로 실행되도록 커맨드 유지
     command: python -m uvicorn api.app:app --host 0.0.0.0 --port 8080
     environment:
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       FACTORY_API_URL: "http://141.164.58.92:8000"
+    depends_on:
+      - postgres
     restart: unless-stopped
     networks:
       - automation_net
+
+  # 4. 데이터베이스 (PostgreSQL)
+  postgres:
+    container_name: automation_postgres
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "whdalsl100@buu"
+      POSTGRES_DB: youtube_ai_factory
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - automation_net
+
+volumes:
+  postgres_data:
 
 networks:
   automation_net:
